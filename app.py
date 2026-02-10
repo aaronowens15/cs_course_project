@@ -10,6 +10,38 @@ class node:
     def __repr__(self):
         return f"Node({self.data})"
 
+class Stack:
+    """Stack class for implementing undo functionality"""
+    def __init__(self):
+        self.items = []
+    
+    def push(self, item):
+        """Push an item onto the stack"""
+        self.items.append(item)
+    
+    def pop(self):
+        """Pop an item from the stack"""
+        if not self.is_empty():
+            return self.items.pop()
+        return None
+    
+    def is_empty(self):
+        """Check if the stack is empty"""
+        return len(self.items) == 0
+    
+    def size(self):
+        """Get the size of the stack"""
+        return len(self.items)
+    
+    def peek(self):
+        """Peek at the top item without removing it"""
+        if not self.is_empty():
+            return self.items[-1]
+        return None
+    
+    def __repr__(self):
+        return f"Stack({self.items})"
+
 class LinkedList:
     """LinkedList class to manage the linked list structure"""
     def __init__(self):
@@ -77,6 +109,9 @@ app.config['FLASK_TITLE'] = ""
 # Linked List to store contacts
 contacts = LinkedList()
 
+# Stack for undo functionality
+undo_stack = Stack()
+
 # Initialize with sample contacts
 initial_contacts = [
     {'name': 'John Smith', 'email': 'john.smith@email.com'},
@@ -131,6 +166,7 @@ def add_contact():
     """
     Endpoint to add a new contact to the linked list.
     Inserts the contact into the linked list structure.
+    Pushes the operation to the undo stack.
     """
     name = request.form.get('name')
     email = request.form.get('email')
@@ -139,6 +175,8 @@ def add_contact():
     if name and email:  # Validate inputs
         contact_data = {'name': name, 'email': email}
         contacts.append(contact_data)
+        # Push the operation to the undo stack
+        undo_stack.push({'operation': 'add', 'data': contact_data})
     
     return redirect(url_for('index'))
 
@@ -167,12 +205,35 @@ def delete_contact():
     """
     Endpoint to delete a contact from the linked list.
     Removes the contact by matching name and email.
+    Pushes the operation to the undo stack.
     """
     name = request.form.get('name')
     email = request.form.get('email')
     
     if name and email:
+        # Push the operation to the undo stack before deleting
+        undo_stack.push({'operation': 'delete', 'data': {'name': name, 'email': email}})
         contacts.delete(name, email)
+    
+    return redirect(url_for('index'))
+
+@app.route('/undo', methods=['POST'])
+def undo_last():
+    """
+    Endpoint to undo the last operation (add or delete).
+    Pops from the undo stack and reverses the operation.
+    """
+    last_operation = undo_stack.pop()
+    
+    if last_operation:
+        if last_operation['operation'] == 'add':
+            # If the last operation was adding, delete that contact
+            contact = last_operation['data']
+            contacts.delete(contact['name'], contact['email'])
+        elif last_operation['operation'] == 'delete':
+            # If the last operation was deleting, add that contact back
+            contact = last_operation['data']
+            contacts.append(contact)
     
     return redirect(url_for('index'))
 
