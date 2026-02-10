@@ -112,6 +112,9 @@ contacts = LinkedList()
 # Stack for undo functionality
 undo_stack = Stack()
 
+# Stack for redo functionality
+redo_stack = Stack()
+
 # Initialize with sample contacts
 initial_contacts = [
     {'name': 'John Smith', 'email': 'john.smith@email.com'},
@@ -177,6 +180,8 @@ def add_contact():
         contacts.append(contact_data)
         # Push the operation to the undo stack
         undo_stack.push({'operation': 'add', 'data': contact_data})
+        # Clear redo stack when a new operation is performed
+        redo_stack.items.clear()
     
     return redirect(url_for('index'))
 
@@ -214,6 +219,8 @@ def delete_contact():
         # Push the operation to the undo stack before deleting
         undo_stack.push({'operation': 'delete', 'data': {'name': name, 'email': email}})
         contacts.delete(name, email)
+        # Clear redo stack when a new operation is performed
+        redo_stack.items.clear()
     
     return redirect(url_for('index'))
 
@@ -222,6 +229,7 @@ def undo_last():
     """
     Endpoint to undo the last operation (add or delete).
     Pops from the undo stack and reverses the operation.
+    Pushes the operation to the redo stack for redo functionality.
     """
     last_operation = undo_stack.pop()
     
@@ -234,6 +242,32 @@ def undo_last():
             # If the last operation was deleting, add that contact back
             contact = last_operation['data']
             contacts.append(contact)
+        
+        # Push the operation to the redo stack
+        redo_stack.push(last_operation)
+    
+    return redirect(url_for('index'))
+
+@app.route('/redo', methods=['POST'])
+def redo_last():
+    """
+    Endpoint to redo the last undone operation.
+    Pops from the redo stack and reapplies the operation.
+    """
+    last_operation = redo_stack.pop()
+    
+    if last_operation:
+        if last_operation['operation'] == 'add':
+            # Redo the add operation
+            contact = last_operation['data']
+            contacts.append(contact)
+        elif last_operation['operation'] == 'delete':
+            # Redo the delete operation
+            contact = last_operation['data']
+            contacts.delete(contact['name'], contact['email'])
+        
+        # Push the operation back to the undo stack
+        undo_stack.push(last_operation)
     
     return redirect(url_for('index'))
 
