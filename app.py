@@ -43,12 +43,13 @@ class Stack:
         return f"Stack({self.items})"
 
 class LinkedList:
-    """LinkedList class to manage the linked list structure"""
+    """LinkedList class to manage the linked list structure with hash table optimization"""
     def __init__(self):
         self.head = None
+        self.hash_table = {}  # Hash table: email -> contact_data for O(1) lookup
     
     def append(self, data):
-        """Add a node to the end of the linked list"""
+        """Add a node to the end of the linked list and to the hash table"""
         new_node = node(data)
         if not self.head:
             self.head = new_node
@@ -57,6 +58,9 @@ class LinkedList:
             while current.next:
                 current = current.next
             current.next = new_node
+        
+        # Add to hash table for O(1) lookup by email
+        self.hash_table[data['email']] = data
     
     def to_list(self):
         """Convert linked list to a Python list for rendering"""
@@ -68,15 +72,18 @@ class LinkedList:
         return result
     
     def search(self, query):
-        """Search for contacts matching the query"""
+        """Search for contacts matching the query by name"""
         results = []
-        current = self.head
-        while current:
-            if isinstance(current.data, dict):
-                if query in current.data['name'].lower() or query in current.data['email'].lower():
-                    results.append(current.data)
-            current = current.next
+        # Iterate over hash table values for O(n) search by name or email
+        for contact in self.hash_table.values():
+            if isinstance(contact, dict):
+                if query in contact['name'].lower() or query in contact['email'].lower():
+                    results.append(contact)
         return results
+    
+    def search_by_email(self, email):
+        """Search for a contact by email - O(1) lookup using hash table"""
+        return self.hash_table.get(email, None)
     
     def delete(self, name, email):
         """Delete a contact by name and email"""
@@ -86,6 +93,9 @@ class LinkedList:
         # Check if the head node matches
         if self.head.data.get('name') == name and self.head.data.get('email') == email:
             self.head = self.head.next
+            # Remove from hash table
+            if email in self.hash_table:
+                del self.hash_table[email]
             return True
         
         # Search through the rest of the list
@@ -93,6 +103,9 @@ class LinkedList:
         while current.next:
             if current.next.data.get('name') == name and current.next.data.get('email') == email:
                 current.next = current.next.next
+                # Remove from hash table
+                if email in self.hash_table:
+                    del self.hash_table[email]
                 return True
             current = current.next
         
@@ -189,14 +202,21 @@ def add_contact():
 def search():
     """
     Endpoint to search for contacts by name or email in the linked list.
-    Traverses the linked list to find matching contacts.
+    Uses hash table optimization for O(1) lookups.
+    Search by name: O(n) where n is number of contacts
+    Search by email: O(1) using hash table lookup
     """
     search_query = request.args.get('search', '').lower()
     filtered_contacts = []
     
     if search_query:
-        # Search through the linked list
-        filtered_contacts = contacts.search(search_query)
+        # Check if it's an exact email match for O(1) lookup
+        contact_by_email = contacts.search_by_email(search_query)
+        if contact_by_email:
+            filtered_contacts = [contact_by_email]
+        else:
+            # Otherwise search by name or partial email match
+            filtered_contacts = contacts.search(search_query)
     
     return render_template('index.html',
                          contacts=filtered_contacts,
