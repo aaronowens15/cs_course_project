@@ -46,6 +46,26 @@ class LinkedList:
             current = current.next
         return results
     
+    def delete(self, name, email):
+        """Delete a contact by name and email"""
+        if not self.head:
+            return False
+        
+        # Check if the head node matches
+        if self.head.data.get('name') == name and self.head.data.get('email') == email:
+            self.head = self.head.next
+            return True
+        
+        # Search through the rest of the list
+        current = self.head
+        while current.next:
+            if current.next.data.get('name') == name and current.next.data.get('email') == email:
+                current.next = current.next.next
+                return True
+            current = current.next
+        
+        return False
+    
     def __repr__(self):
         return f"LinkedList({self.to_list()})"
     
@@ -141,6 +161,20 @@ def search():
                          search_query=search_query,
                          search_performed=True,
                          title=app.config['FLASK_TITLE'])
+
+@app.route('/delete', methods=['POST'])
+def delete_contact():
+    """
+    Endpoint to delete a contact from the linked list.
+    Removes the contact by matching name and email.
+    """
+    name = request.form.get('name')
+    email = request.form.get('email')
+    
+    if name and email:
+        contacts.delete(name, email)
+    
+    return redirect(url_for('index'))
 
 # --- DATABASE CONNECTIVITY (For later phases) ---
 # Placeholders for students to fill in during Sessions 5 and 27
