@@ -8,6 +8,7 @@
         .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
         .search-section { background-color: #e8f4f8; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
         .add-section { background-color: #f0f0f0; padding: 15px; border-radius: 5px; }
+        .advanced-section { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
         input[type="text"], input[type="email"], input[type="search"] { padding: 8px; margin-right: 5px; width: 250px; }
         button { padding: 8px 15px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
         button:hover { background-color: #45a049; }
@@ -18,6 +19,8 @@
         .contact-actions { display: inline-block; margin-left: 10px; }
         .search-info { margin-top: 10px; color: #555; font-style: italic; }
         .data-structure-info { background-color: #f9f9f9; padding: 10px; margin-top: 10px; border-left: 4px solid #4CAF50; font-size: 0.9em; color: #666; }
+        .tab-btn { background-color: #e0e0e0; color: #333; border: none; padding: 8px 12px; border-radius: 4px; }
+        .tab-btn.active { background-color: #4CAF50; color: #fff; }
     </style>
 </head>
 <body>
@@ -27,9 +30,16 @@
     <div class="data-structure-info">
         <strong>Data Structure:</strong> Linked List + Hash Table + Category Tree + BST + Priority Queue (Heap)
     </div>
-    
+
+    <!-- Tab Menu -->
+    <div class="tab-menu" style="margin: 20px 0; display: flex; gap: 10px;">
+        <button id="tab-search" class="tab-btn active" onclick="showTab('search')">Search Contacts</button>
+        <button id="tab-add" class="tab-btn" onclick="showTab('add')">Add New Contact</button>
+        <button id="tab-advanced" class="tab-btn" onclick="showTab('advanced')">Advanced Data Structures</button>
+    </div>
+
     <!-- Search Section -->
-    <div class="search-section">
+    <div id="section-search" class="search-section tab-content">
         <h3>Search Contacts</h3>
         <form action="/" method="GET">
             <input type="search" name="search" placeholder="Search by name or email..." value="{{ search_query }}">
@@ -65,6 +75,47 @@
             <a href="/sort" style="margin-left: 10px;"><button type="button" style="background-color: #FF9800;">↕ Sort by Name</button></a>
         </div>
     </div>
+    
+    <!-- Advanced Features Section -->
+    <div id="section-advanced" class="advanced-section tab-content" style="display:none;">
+        <h3>🔧 Advanced Data Structures</h3>
+        <div style="margin-bottom: 15px;">
+            <h4>🌳 Category Tree</h4>
+            <p>Contacts are organized in a hierarchical tree structure (e.g., Work → Department → Team) for efficient categorization and retrieval.</p>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <h4>🔍 BST Implementation</h4>
+            <p>Contact categories are stored in a Binary Search Tree for O(log n) fast retrieval and sorted organization.</p>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <h4>⭐ VIP System</h4>
+            <p>High-priority contacts (priority > 3) are managed using a Priority Queue (Heap), ensuring VIP contacts always appear at the top of the dashboard.</p>
+        </div>
+        <hr>
+        {% if vip_contacts %}
+            <h4>VIP Contacts</h4>
+            {% for contact in vip_contacts %}
+                <div class="card" style="border-left: 4px solid #FFD700;">
+                    <strong>{{ contact.name }}</strong> - {{ contact.email }}<br>
+                    <small>Category: {{ contact.category }} | Priority: {{ contact.priority }}</small>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No VIP contacts currently.</p>
+        {% endif %}
+        <hr>
+        {% if categories %}
+            <h4>Categories (BST)</h4>
+            {% for cat, ids in categories %}
+                <div class="card">
+                    <strong>{{ cat }}</strong> - {{ ids|length }} contact(s)
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No categories available.</p>
+        {% endif %}
+    </div>
+    
     <hr>
     
     <!-- Contacts Display -->
@@ -108,27 +159,25 @@
         <p style="color: #666; font-size: 0.9em;">Total contacts in system: {{ all_contacts|length }}</p>
     {% endif %}
     
-    <!-- VIP Contacts Section -->
-    {% if vip_contacts %}
-    <hr>
-    <h3>⭐ VIP Contacts (Priority Queue)</h3>
-    {% for contact in vip_contacts %}
-        <div class="card" style="border-left: 4px solid #FFD700;">
-            <strong>{{ contact.name }}</strong> - {{ contact.email }}<br>
-            <small>Category: {{ contact.category }} | Priority: {{ contact.priority }}</small>
-        </div>
-    {% endfor %}
-    {% endif %}
-    
-    <!-- Categories Section -->
-    {% if categories %}
-    <hr>
-    <h3>📁 Contact Categories (BST)</h3>
-    {% for cat, ids in categories %}
-        <div class="card">
-            <strong>{{ cat }}</strong> - {{ ids|length }} contact(s)
-        </div>
-    {% endfor %}
-    {% endif %}
+    <script>
+        function showTab(tab) {
+            const tabs = ['search', 'add', 'advanced'];
+            tabs.forEach(t => {
+                const section = document.getElementById('section-' + t);
+                const button = document.getElementById('tab-' + t);
+                if (section) {
+                    section.style.display = (t === tab) ? 'block' : 'none';
+                }
+                if (button) {
+                    button.classList.toggle('active', t === tab);
+                }
+            });
+        }
+
+        // Initialize default tab
+        document.addEventListener('DOMContentLoaded', function() {
+            showTab('search');
+        });
+    </script>
 </body>
 </html>
