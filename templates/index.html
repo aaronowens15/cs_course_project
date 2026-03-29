@@ -25,7 +25,7 @@
     
     <!-- Data Structure Info -->
     <div class="data-structure-info">
-        <strong>Data Structure:</strong> Supports both Python List and Linked List (Node) implementations
+        <strong>Data Structure:</strong> Linked List + Hash Table + Category Tree + BST + Priority Queue (Heap)
     </div>
     
     <!-- Search Section -->
@@ -51,22 +51,28 @@
         <form action="/add" method="POST">
             <input type="text" name="name" placeholder="Name" required>
             <input type="email" name="email" placeholder="Email" required>
+            <input type="text" name="category" placeholder="Category (e.g., Work/IT)" value="General">
+            <input type="number" name="priority" placeholder="Priority (1-5)" min="1" max="5" value="1">
             <button type="submit">Add to Data Structure</button>
         </form>
         <div style="margin-top: 10px;">
             <form action="/undo" method="POST" style="display: inline; margin-right: 10px;">
                 <button type="submit" style="background-color: #2196F3;">↶ Undo</button>
             </form>
-            <form action="/redo" method="POST" style="display: inline;">
+            <form action="/redo" method="POST" style="display: inline; margin-right: 10px;">
                 <button type="submit" style="background-color: #4CAF50;">↷ Redo</button>
             </form>
+            <a href="/sort" style="margin-left: 10px;"><button type="button" style="background-color: #FF9800;">↕ Sort by Name</button></a>
         </div>
     </div>
     <hr>
     
     <!-- Contacts Display -->
     <h3>
-        {% if search_query %}
+        {% if sorted %}
+            Contacts (Sorted by Name - Quick Sort)
+            <a href="/" style="margin-left: 10px;"><button type="button" style="background-color: #9C27B0; padding: 5px 10px; font-size: 0.9em;">← Back to Original Order</button></a>
+        {% elif search_query %}
             Search Results
         {% else %}
             Current Contacts (In-Memory)
@@ -76,7 +82,8 @@
     {% if contacts %}
         {% for contact in contacts %}
             <div class="card">
-                <strong>{{ contact.name }}</strong> - {{ contact.email }}
+                <strong>{{ contact.name }}</strong> - {{ contact.email }}<br>
+                <small>Category: {{ contact.category }} | Priority: {{ contact.priority }}</small>
                 <div class="contact-actions">
                     <form action="/delete" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this contact?');">
                         <input type="hidden" name="name" value="{{ contact.name }}">
@@ -99,6 +106,29 @@
     {% if search_query and all_contacts %}
         <hr>
         <p style="color: #666; font-size: 0.9em;">Total contacts in system: {{ all_contacts|length }}</p>
+    {% endif %}
+    
+    <!-- VIP Contacts Section -->
+    {% if vip_contacts %}
+    <hr>
+    <h3>⭐ VIP Contacts (Priority Queue)</h3>
+    {% for contact in vip_contacts %}
+        <div class="card" style="border-left: 4px solid #FFD700;">
+            <strong>{{ contact.name }}</strong> - {{ contact.email }}<br>
+            <small>Category: {{ contact.category }} | Priority: {{ contact.priority }}</small>
+        </div>
+    {% endfor %}
+    {% endif %}
+    
+    <!-- Categories Section -->
+    {% if categories %}
+    <hr>
+    <h3>📁 Contact Categories (BST)</h3>
+    {% for cat, ids in categories %}
+        <div class="card">
+            <strong>{{ cat }}</strong> - {{ ids|length }} contact(s)
+        </div>
+    {% endfor %}
     {% endif %}
 </body>
 </html>
