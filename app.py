@@ -303,25 +303,24 @@ initial_contacts = [
 for contact in initial_contacts:
     contacts.append(contact)
 
-# Build category structures
-all_contacts = contacts.to_list()
-category_dict = {}
-for contact in all_contacts:
-    # Add to category tree
-    category_tree.add_contact_to_category(contact['id'], contact['category'])
+def rebuild_category_data():
+    global category_tree, category_bst, category_dict, vip_queue
+    category_tree = CategoryTree()
+    category_bst = BST()
+    category_dict = {}
+    vip_queue = PriorityQueue()
     
-    # Collect for BST
-    if contact['category'] not in category_dict:
-        category_dict[contact['category']] = []
-    category_dict[contact['category']].append(contact['id'])
-    
-    # Add to VIP queue if priority > 3
-    if contact['priority'] > 3:
-        vip_queue.push(contact['priority'], contact['id'])
+    all_contacts = contacts.to_list()
+    for contact in all_contacts:
+        category_tree.add_contact_to_category(contact['id'], contact.get('category', 'General'))
+        category = contact.get('category', 'General')
+        category_dict.setdefault(category, []).append(contact['id'])
+        category_bst.insert(category, category_dict[category])
+        if contact.get('priority', 1) > 3:
+            vip_queue.push(contact['priority'], contact['id'])
 
-# Insert categories into BST
-for cat, ids in category_dict.items():
-    category_bst.insert(cat, ids)
+# Build category structures
+rebuild_category_data()
 
 # --- SIMPLE HASH FUNCTION FOR STRINGS ---
 def simple_hash(string, table_size=100):
@@ -406,29 +405,47 @@ def find_contact_by_id(contacts_list, target_id):
 @app.route('/')
 def index():
     """
-    Displays the main page.
-    Displays all contacts from the linked list structure.
+    Displays the main page with sorting, filtering, and search for contacts.
     """
     search_query = request.args.get('search', '').lower()
+    category_filter = request.args.get('category', '')
+    sort_by = request.args.get('sort_by', 'name')
+    order = request.args.get('order', 'asc')
+
     all_contacts_list = contacts.to_list()
+
+    # VIP contacts on top (priority descending)
+    vip_contacts = sorted(all_contacts_list, key=lambda c: c.get('priority', 1), reverse=True)[:5]
+
+    # Start with all contacts and apply search filter
     filtered_contacts = all_contacts_list
-    
     if search_query:
-        filtered_contacts = contacts.search(search_query)
-    
-    # Get VIP contacts
-    vip_contact_ids = vip_queue.get_top_n(5)  # Top 5 VIP
-    vip_contacts = [c for c in all_contacts_list if c['id'] in vip_contact_ids]
-    
-    # Get categories from BST
+        filtered_contacts = [c for c in filtered_contacts if search_query in c['name'].lower() or search_query in c['email'].lower()]
+
+    # Filter by category
+    if category_filter:
+        filtered_contacts = [c for c in filtered_contacts if c.get('category', 'General') == category_filter]
+
+    # Sorting logic
+    if sort_by in ['name', 'email', 'category', 'priority']:
+        filtered_contacts = sorted(
+            filtered_contacts,
+            key=lambda c: (c.get(sort_by, '') if sort_by != 'priority' else c.get('priority', 1)),
+            reverse=(order == 'desc')
+        )
+
     categories = category_bst.inorder_traversal()
-    
-    return render_template('index.html', 
+
+    return render_template('index.html',
                          contacts=filtered_contacts,
                          all_contacts=all_contacts_list,
                          search_query=search_query,
+                         category_filter=category_filter,
+                         sort_by=sort_by,
+                         order=order,
                          vip_contacts=vip_contacts,
                          categories=categories,
+                         category_options=sorted(category_dict.keys()),
                          title=app.config['FLASK_TITLE'])
 
 @app.route('/add', methods=['POST'])
@@ -464,6 +481,9 @@ def add_contact():
         undo_stack.push({'operation': 'add', 'data': contact_data})
         # Clear redo stack when a new operation is performed
         redo_stack.items.clear()
+
+        # Rebuild category and VIP data after change
+        rebuild_category_data()
     
     return redirect(url_for('index'))
 
@@ -510,6 +530,9 @@ def delete_contact():
         contacts.delete(name, email)
         # Clear redo stack when a new operation is performed
         redo_stack.items.clear()
+
+        # Rebuild category and VIP data after change
+        rebuild_category_data()
     
     return redirect(url_for('index'))
 
@@ -534,6 +557,9 @@ def undo_last():
         
         # Push the operation to the redo stack
         redo_stack.push(last_operation)
+
+        # Rebuild category and VIP data after undo
+        rebuild_category_data()
     
     return redirect(url_for('index'))
 
@@ -557,6 +583,9 @@ def redo_last():
         
         # Push the operation back to the undo stack
         undo_stack.push(last_operation)
+
+        # Rebuild category and VIP data after redo
+        rebuild_category_data()
     
     return redirect(url_for('index'))
 
