@@ -58,6 +58,14 @@ class TreeNode:
     def add_contact(self, contact_id):
         if contact_id not in self.contacts:
             self.contacts.append(contact_id)
+    
+    def to_dict(self):
+        """Convert tree node to dictionary for JSON serialization"""
+        return {
+            'name': self.name,
+            'contact_count': len(self.contacts),
+            'children': [child.to_dict() for child in self.children.values()]
+        }
 
 class CategoryTree:
     """Tree structure for organizing contacts by categories"""
@@ -86,6 +94,10 @@ class CategoryTree:
             return current.contacts
         except KeyError:
             return []
+    
+    def to_dict(self):
+        """Convert entire tree to dictionary"""
+        return self.root.to_dict()
 
 # --- BINARY SEARCH TREE FOR CATEGORIES ---
 class BSTNode:
@@ -446,6 +458,77 @@ def index():
                          vip_contacts=vip_contacts,
                          categories=categories,
                          category_options=sorted(category_dict.keys()),
+                         title=app.config['FLASK_TITLE'])
+
+@app.route('/manage')
+def manage():
+    """
+    Displays the comprehensive manage page with tabs for all contact management features.
+    Includes: All Contacts, VIP Contacts, Category Tree, Add Contact, and Search/Filter.
+    """
+    all_contacts_list = contacts.to_list()
+    
+    # Get VIP contacts (priority > 3)
+    vip_contacts = sorted(
+        [c for c in all_contacts_list if c.get('priority', 1) > 3],
+        key=lambda c: c.get('priority', 1),
+        reverse=True
+    )
+    
+    # Get search/filter parameters
+    search_query = request.args.get('search', '').lower()
+    category_filter = request.args.get('category', '')
+    priority_filter = request.args.get('priority', '')
+    sort_by = request.args.get('sort_by', 'name')
+    order = request.args.get('order', 'asc')
+    
+    # Start with all contacts
+    filtered_contacts = all_contacts_list
+    
+    # Apply search filter
+    if search_query:
+        filtered_contacts = [c for c in filtered_contacts 
+                           if search_query in c['name'].lower() or search_query in c['email'].lower()]
+    
+    # Apply category filter
+    if category_filter:
+        filtered_contacts = [c for c in filtered_contacts if c.get('category', 'General') == category_filter]
+    
+    # Apply priority filter
+    if priority_filter:
+        try:
+            priority_val = int(priority_filter)
+            filtered_contacts = [c for c in filtered_contacts if c.get('priority', 1) == priority_val]
+        except ValueError:
+            pass
+    
+    # Apply sorting
+    if sort_by in ['name', 'email', 'category', 'priority']:
+        key_func = lambda c: (c.get(sort_by, '') if sort_by != 'priority' else c.get('priority', 1))
+        filtered_contacts = sorted(filtered_contacts, key=key_func, reverse=(order == 'desc'))
+    
+    # Get category tree structure
+    category_tree_dict = category_tree.to_dict()
+    
+    # Calculate stats
+    total_contacts = len(all_contacts_list)
+    vip_count = len(vip_contacts)
+    category_count = len(category_dict)
+    
+    return render_template('manage.html',
+                         all_contacts=all_contacts_list,
+                         vip_contacts=vip_contacts,
+                         search_results=filtered_contacts if (search_query or category_filter or priority_filter) else None,
+                         search_query=search_query,
+                         category_filter=category_filter,
+                         priority_filter=priority_filter,
+                         sort_by=sort_by,
+                         order=order,
+                         category_tree_data=category_tree_dict,
+                         category_options=sorted(category_dict.keys()),
+                         total_contacts=total_contacts,
+                         vip_count=vip_count,
+                         category_count=category_count,
                          title=app.config['FLASK_TITLE'])
 
 @app.route('/add', methods=['POST'])
